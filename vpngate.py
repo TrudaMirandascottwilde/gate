@@ -20,11 +20,17 @@ def get_vpngate_nodes():
 
         try:
             nodes.append({
-                "host": parts[1],
-                "ip": parts[3],
-                "country": parts[6],
+                "host": parts[0],
+                "ip": parts[1],
+                "score": parts[2],
+                "ping": parts[3],
+                "speed": parts[4],
+                "country": parts[5],
                 "country_long": parts[5],
-                "port": 443,
+                "sessions": parts[6],
+                "uptime": parts[7],
+                "users": parts[8],
+                "traffic": parts[9],
             })
         except Exception:
             continue
@@ -34,6 +40,7 @@ def get_vpngate_nodes():
 
 if __name__ == "__main__":
     nodes = get_vpngate_nodes()
+
     print(f"获取到 {len(nodes)} 个 VPN Gate 节点")
 
     for node in nodes:
