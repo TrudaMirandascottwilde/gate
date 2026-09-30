@@ -74,6 +74,21 @@ RESIDENTIAL_ORG_KEYWORDS = [
     "BREEZE", "TIM S.P.A", "LIBERO", "FASTWEB", "FREE FRANCE", "BT OPEN",
 ]
 
+# ISO 国家码 -> 中文名 (edgetunnel 清单展示用; 未收录则回退英文原名)
+COUNTRY_ZH = {
+    "JP": "日本", "KR": "韩国", "US": "美国", "CA": "加拿大", "RU": "俄罗斯",
+    "RO": "罗马尼亚", "TH": "泰国", "VN": "越南", "DE": "德国", "FR": "法国",
+    "GB": "英国", "UK": "英国", "SG": "新加坡", "TW": "台湾", "HK": "香港",
+    "CN": "中国", "AU": "澳大利亚", "NL": "荷兰", "SE": "瑞典", "CH": "瑞士",
+    "IT": "意大利", "ES": "西班牙", "PL": "波兰", "IN": "印度", "BR": "巴西",
+    "MX": "墨西哥", "ID": "印度尼西亚", "MY": "马来西亚", "PH": "菲律宾",
+    "TR": "土耳其", "UA": "乌克兰", "CZ": "捷克", "GR": "希腊", "PT": "葡萄牙",
+    "FI": "芬兰", "NO": "挪威", "DK": "丹麦", "IE": "爱尔兰", "BE": "比利时",
+    "AT": "奥地利", "HU": "匈牙利", "AR": "阿根廷", "CL": "智利", "CO": "哥伦比亚",
+    "NZ": "新西兰", "ZA": "南非", "IL": "以色列", "AE": "阿联酋", "SA": "沙特",
+    "EG": "埃及",
+}
+
 # ---------------------------------------------------------------------------
 # 日志 (用户要求的分区格式)
 # ---------------------------------------------------------------------------
@@ -388,6 +403,49 @@ def build_outputs(results, raw_count, sstp_count, source):
     return data
 
 
+CHAIN_URL = os.environ.get("CHAIN_URL", "https://jerylihub.github.io/gate/chains.txt")
+
+
+def build_chains_text(data):
+    """生成 edgetunnel 链式代理清单: 按国家分组, 每国编号固定, 住宅优先, 延迟升序。
+    每行 = 「名字 + $sstp://vpn:vpn@host:port」, 名字不变, 指令每 30 分钟自动换。"""
+    countries = data["countries"]
+    lines = [
+        "# VPN Gate SSTP 节点 -> edgetunnel 链式代理清单",
+        f"# 自动更新: {data['generated_at']} (每 30 分钟重新检测)",
+        f"# 固定地址: {CHAIN_URL}",
+        "#",
+        "# 用法: 在 edgetunnel 节点备注里直接粘贴下面任意一行 (名字与指令连写)",
+        "#   例: 日本-01$sstp://vpn:vpn@vpnxxx.opengw.net:443",
+        "# 名字保持不变, 只有 $sstp:// 后面的地址每 30 分钟自动更换",
+        "# 账号密码固定 vpn:vpn ; 端口必须保留",
+        "# ========================================================",
+    ]
+    ordered = sorted(
+        countries.items(),
+        key=lambda kv: (-int(kv[1].get("count") or 0), str(kv[1].get("code") or kv[0])),
+    )
+    for cname, grp in ordered:
+        code = str(grp.get("code") or "?").upper()
+        zh = COUNTRY_ZH.get(code, cname)
+        nodes = sorted(
+            grp["nodes"],
+            key=lambda n: (
+                0 if n.get("residential") == "residential" else 1,
+                n.get("latency_ms") is None,
+                n.get("latency_ms") or 0,
+                n.get("host") or "",
+            ),
+        )
+        lines.append("")
+        lines.append(
+            f"# ---- {zh} {code} · {grp['count']} 节点 (住宅 {grp['residential']} / 机房 {grp['datacenter']}) ----"
+        )
+        for i, n in enumerate(nodes, 1):
+            lines.append(f"{zh}-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+    return "\n".join(lines) + "\n"
+
+
 def write_outputs(data):
     os.makedirs(PUBLIC_DIR, exist_ok=True)
     data_path = os.path.join(PUBLIC_DIR, "data.json")
@@ -405,7 +463,12 @@ def write_outputs(data):
                 "<script>fetch('data.json').then(r=>r.json()).then(d=>out.textContent=JSON.stringify(d.stats)).catch(e=>out.textContent='加载失败:'+e)</script></html>")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
-    return data_path, html_path
+
+    # edgetunnel 链式代理清单 (固定 URL, 方案一: 名字不变、指令自动换)
+    chains_path = os.path.join(PUBLIC_DIR, "chains.txt")
+    with open(chains_path, "w", encoding="utf-8") as f:
+        f.write(build_chains_text(data))
+    return data_path, html_path, chains_path
 
 
 # ---------------------------------------------------------------------------
@@ -457,9 +520,10 @@ def main():
     log("RESULT", f"可用节点: {len(success)}")
     log("RESULT", f"国家数量: {data['stats']['countries']}")
 
-    data_path, html_path = write_outputs(data)
+    data_path, html_path, chains_path = write_outputs(data)
     log("WEBSITE", f"生成 {os.path.relpath(data_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(html_path, REPO_DIR)}")
+    log("WEBSITE", f"生成 {os.path.relpath(chains_path, REPO_DIR)}")
     log("WEBSITE", "完成 (GitHub Pages 部署由 workflow 执行)")
 
 
