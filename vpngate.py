@@ -471,12 +471,15 @@ def build_hosts_text(data):
     """生成可直接粘贴到 edgetunnel 后台「自定义优选IP」框的清单。
     每行 = 入口地址#名字$sstp://... ; 名字固定, 底下 SSTP 节点每 30 分钟自动换。"""
     countries = data["countries"]
-    edge = EDGE_HOSTS or ["your-domain.com:443"]
+    # 入口: 默认用 edgetunnel 域名(比裸 CF 优选IP 稳定, 避免被墙); 可用 HOSTS_ENTRY 覆盖(逗号分隔多入口)
+    _entry = os.environ.get("HOSTS_ENTRY", "").strip()
+    edge = [e.strip() for e in _entry.split(",") if e.strip()] or [f"{EDT_DOMAIN}:443"]
     lines = [
         "# edgetunnel「自定义优选IP」清单 (整段复制, 追加到后台现有内容后面)",
         f"# 自动更新: {data['generated_at']} (每 30 分钟重新检测)",
         f"# 固定地址: {HOSTS_URL}",
         "# 每行 = 入口地址#名字$sstp://vpn:vpn@节点:端口",
+        "# 入口用你的 edgetunnel 域名 (比 CF 优选IP 稳定)",
         "# 名字固定; 只有 $sstp:// 后面的节点地址每 30 分钟自动更换",
         "# 账号密码固定 vpn:vpn ; 节点端口必须保留",
         "# ========================================================",
