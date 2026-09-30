@@ -456,10 +456,14 @@ EDGE_HOSTS = [
     h.strip()
     for h in os.environ.get(
         "EDGE_HOSTS",
-        "104.17.157.39:8443,104.26.5.105:8443,104.17.55.189:2087,104.16.152.17:2087,"
-        "8.39.125.110:8443,104.17.16.179:2083,104.17.184.237:2096,91.193.58.158:2087,"
-        "108.162.198.215:2083,104.16.246.13:2053,162.159.34.17:2053,104.18.33.120:2087,"
-        "104.17.174.129:8443,172.66.3.51:2096,188.164.248.49:443,104.19.34.157:2087",
+        "cf.1o.ee:443,www.mfyx.cn:443,hzytjy.cn:443,saas.sin.fan:443,"
+        "auto.dolby.dpdns.org:443,cdn.667891.xyz:443,saas.072159.xyz:443,ali.nonull.pp.ua:443,"
+        "tt.78607323.xyz:443,cdn.cnno.de:443,cf.777791.xyz:443,cdn.7zz.cn:443,"
+        "www.wto.org:443,vps.cheng2001.top:443,academy.7shifts.com:443,securecircle.com:443,"
+        "wppaunz.com:443,www.gov.il:443,www.blibli.com:443,ahrefs.com:443,"
+        "www.udacity.com:443,www.sloomb.com:443,www.akasantech.com:443,staticdelivery.nexusmods.com:443,"
+        "www.carousell.sg:443,www.mastervolt.com:443,www.giannidelprete.it:443,egov.uscis.gov:443,"
+        "www.deepl.com:443,serviceshub.samsclub.com:443",
     ).split(",")
     if h.strip()
 ]
@@ -471,15 +475,15 @@ def build_hosts_text(data):
     """生成可直接粘贴到 edgetunnel 后台「自定义优选IP」框的清单。
     每行 = 入口地址#名字$sstp://... ; 名字固定, 底下 SSTP 节点每 30 分钟自动换。"""
     countries = data["countries"]
-    # 入口: 默认用 edgetunnel 域名(比裸 CF 优选IP 稳定, 避免被墙); 可用 HOSTS_ENTRY 覆盖(逗号分隔多入口)
+    # 入口: 默认用 30 个优选域名循环分配 (bestcf 测速低延迟); 可用 HOSTS_ENTRY 覆盖(逗号分隔)
     _entry = os.environ.get("HOSTS_ENTRY", "").strip()
-    edge = [e.strip() for e in _entry.split(",") if e.strip()] or [f"{EDT_DOMAIN}:443"]
+    edge = [e.strip() for e in _entry.split(",") if e.strip()] or EDGE_HOSTS or [f"{EDT_DOMAIN}:443"]
     lines = [
         "# edgetunnel「自定义优选IP」清单 (整段复制, 追加到后台现有内容后面)",
         f"# 自动更新: {data['generated_at']} (每 30 分钟重新检测)",
         f"# 固定地址: {HOSTS_URL}",
         "# 每行 = 入口地址#名字$sstp://vpn:vpn@节点:端口",
-        "# 入口用你的 edgetunnel 域名 (比 CF 优选IP 稳定)",
+        "# 入口用 30 个优选域名循环分配 (bestcf 测速低延迟)",
         "# 名字固定; 只有 $sstp:// 后面的节点地址每 30 分钟自动更换",
         "# 账号密码固定 vpn:vpn ; 节点端口必须保留",
         "# ========================================================",
