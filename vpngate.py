@@ -450,6 +450,65 @@ def build_chains_text(data):
     return "\n".join(lines) + "\n"
 
 
+# edgetunnel 入口地址池: 客户端直连 Cloudflare 的优选 IP:端口 (循环分配给每个国家节点当入口)
+# 可通过环境变量 EDGE_HOSTS 覆盖 (逗号分隔)
+EDGE_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        "EDGE_HOSTS",
+        "104.17.157.39:8443,104.26.5.105:8443,104.17.55.189:2087,104.16.152.17:2087,"
+        "8.39.125.110:8443,104.17.16.179:2083,104.17.184.237:2096,91.193.58.158:2087,"
+        "108.162.198.215:2083,104.16.246.13:2053,162.159.34.17:2053,104.18.33.120:2087,"
+        "104.17.174.129:8443,172.66.3.51:2096,188.164.248.49:443,104.19.34.157:2087",
+    ).split(",")
+    if h.strip()
+]
+
+HOSTS_URL = os.environ.get("HOSTS_URL", "https://jerylihub.github.io/gate/hosts.txt")
+
+
+def build_hosts_text(data):
+    """生成可直接粘贴到 edgetunnel 后台「自定义优选IP」框的清单。
+    每行 = 入口地址#名字$sstp://... ; 名字固定, 底下 SSTP 节点每 30 分钟自动换。"""
+    countries = data["countries"]
+    edge = EDGE_HOSTS or ["your-domain.com:443"]
+    lines = [
+        "# edgetunnel「自定义优选IP」清单 (整段复制, 追加到后台现有内容后面)",
+        f"# 自动更新: {data['generated_at']} (每 30 分钟重新检测)",
+        f"# 固定地址: {HOSTS_URL}",
+        "# 每行 = 入口地址#名字$sstp://vpn:vpn@节点:端口",
+        "# 名字固定; 只有 $sstp:// 后面的节点地址每 30 分钟自动更换",
+        "# 账号密码固定 vpn:vpn ; 节点端口必须保留",
+        "# ========================================================",
+    ]
+    idx = 0
+    ordered = sorted(
+        countries.items(),
+        key=lambda kv: (-int(kv[1].get("count") or 0), str(kv[1].get("code") or kv[0])),
+    )
+    for cname, grp in ordered:
+        code = str(grp.get("code") or "?").upper()
+        zh = COUNTRY_ZH.get(code) or (code if code and code != "?" else cname)
+        nodes = sorted(
+            grp["nodes"],
+            key=lambda n: (
+                0 if n.get("residential") == "residential" else 1,
+                n.get("latency_ms") is None,
+                n.get("latency_ms") or 0,
+                n.get("host") or "",
+            ),
+        )
+        lines.append("")
+        lines.append(
+            f"# ---- {zh} {code} · {grp['count']} 节点 (住宅 {grp['residential']} / 机房 {grp['datacenter']}) ----"
+        )
+        for i, n in enumerate(nodes, 1):
+            entry = edge[idx % len(edge)]
+            idx += 1
+            lines.append(f"{entry}#{zh}-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+    return "\n".join(lines) + "\n"
+
+
 def write_outputs(data):
     os.makedirs(PUBLIC_DIR, exist_ok=True)
     data_path = os.path.join(PUBLIC_DIR, "data.json")
@@ -472,7 +531,12 @@ def write_outputs(data):
     chains_path = os.path.join(PUBLIC_DIR, "chains.txt")
     with open(chains_path, "w", encoding="utf-8") as f:
         f.write(build_chains_text(data))
-    return data_path, html_path, chains_path
+
+    # 可直接粘贴进后台「自定义优选IP」框的清单 (入口地址#名字$sstp://...)
+    hosts_path = os.path.join(PUBLIC_DIR, "hosts.txt")
+    with open(hosts_path, "w", encoding="utf-8") as f:
+        f.write(build_hosts_text(data))
+    return data_path, html_path, chains_path, hosts_path
 
 
 # ---------------------------------------------------------------------------
@@ -524,10 +588,11 @@ def main():
     log("RESULT", f"可用节点: {len(success)}")
     log("RESULT", f"国家数量: {data['stats']['countries']}")
 
-    data_path, html_path, chains_path = write_outputs(data)
+    data_path, html_path, chains_path, hosts_path = write_outputs(data)
     log("WEBSITE", f"生成 {os.path.relpath(data_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(html_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(chains_path, REPO_DIR)}")
+    log("WEBSITE", f"生成 {os.path.relpath(hosts_path, REPO_DIR)}")
     log("WEBSITE", "完成 (GitHub Pages 部署由 workflow 执行)")
 
 
