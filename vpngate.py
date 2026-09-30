@@ -86,7 +86,11 @@ COUNTRY_ZH = {
     "FI": "芬兰", "NO": "挪威", "DK": "丹麦", "IE": "爱尔兰", "BE": "比利时",
     "AT": "奥地利", "HU": "匈牙利", "AR": "阿根廷", "CL": "智利", "CO": "哥伦比亚",
     "NZ": "新西兰", "ZA": "南非", "IL": "以色列", "AE": "阿联酋", "SA": "沙特",
-    "EG": "埃及",
+    "EG": "埃及", "HR": "克罗地亚", "BY": "白俄罗斯", "GD": "格林纳达",
+    "LV": "拉脱维亚", "EE": "爱沙尼亚", "LT": "立陶宛", "SK": "斯洛伐克",
+    "SI": "斯洛文尼亚", "BG": "保加利亚", "RS": "塞尔维亚", "GE": "格鲁吉亚",
+    "MD": "摩尔多瓦", "AM": "亚美尼亚", "KZ": "哈萨克斯坦", "UZ": "乌兹别克斯坦",
+    "MN": "蒙古", "NP": "尼泊尔", "LK": "斯里兰卡", "MM": "缅甸",
 }
 
 # ---------------------------------------------------------------------------
@@ -427,7 +431,7 @@ def build_chains_text(data):
     )
     for cname, grp in ordered:
         code = str(grp.get("code") or "?").upper()
-        zh = COUNTRY_ZH.get(code, cname)
+        zh = COUNTRY_ZH.get(code) or (code if code and code != "?" else cname)
         nodes = sorted(
             grp["nodes"],
             key=lambda n: (
