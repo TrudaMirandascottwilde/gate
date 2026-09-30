@@ -420,7 +420,7 @@ def build_chains_text(data):
         f"# 固定地址: {CHAIN_URL}",
         "#",
         "# 用法: 在 edgetunnel 节点备注里直接粘贴下面任意一行 (名字与指令连写)",
-        "#   例: 日本-01$sstp://vpn:vpn@vpnxxx.opengw.net:443",
+        "#   例: 日本-住宅-01$sstp://vpn:vpn@vpnxxx.opengw.net:443",
         "# 名字保持不变, 只有 $sstp:// 后面的地址每 30 分钟自动更换",
         "# 账号密码固定 vpn:vpn ; 端口必须保留",
         "# ========================================================",
@@ -445,8 +445,12 @@ def build_chains_text(data):
         lines.append(
             f"# ---- {zh} {code} · {grp['count']} 节点 (住宅 {grp['residential']} / 机房 {grp['datacenter']}) ----"
         )
-        for i, n in enumerate(nodes, 1):
-            lines.append(f"{zh}-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+        res_nodes = [n for n in nodes if n.get("residential") == "residential"]
+        dc_nodes = [n for n in nodes if n.get("residential") != "residential"]
+        for i, n in enumerate(res_nodes, 1):
+            lines.append(f"{zh}-住宅-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+        for i, n in enumerate(dc_nodes, 1):
+            lines.append(f"{zh}-机房-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
     return "\n".join(lines) + "\n"
 
 
@@ -478,6 +482,7 @@ def build_hosts_text(data):
         f"# 固定地址: {HOSTS_URL}",
         "# 每行 = 入口地址#名字$sstp://vpn:vpn@节点:端口",
         "# 入口用 7 个实测可用优选域名循环分配",
+        "# 名字 = 国家-住宅/机房-编号, 直接区分住宅与机房",
         "# 名字固定; 只有 $sstp:// 后面的节点地址每 30 分钟自动更换",
         "# 账号密码固定 vpn:vpn ; 节点端口必须保留",
         "# ========================================================",
@@ -503,10 +508,16 @@ def build_hosts_text(data):
         lines.append(
             f"# ---- {zh} {code} · {grp['count']} 节点 (住宅 {grp['residential']} / 机房 {grp['datacenter']}) ----"
         )
-        for i, n in enumerate(nodes, 1):
+        res_nodes = [n for n in nodes if n.get("residential") == "residential"]
+        dc_nodes = [n for n in nodes if n.get("residential") != "residential"]
+        for i, n in enumerate(res_nodes, 1):
             entry = edge[idx % len(edge)]
             idx += 1
-            lines.append(f"{entry}#{zh}-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+            lines.append(f"{entry}#{zh}-住宅-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
+        for i, n in enumerate(dc_nodes, 1):
+            entry = edge[idx % len(edge)]
+            idx += 1
+            lines.append(f"{entry}#{zh}-机房-{i:02d}$sstp://vpn:vpn@{n['host']}:{n['port']}")
     return "\n".join(lines) + "\n"
 
 
