@@ -262,15 +262,24 @@ def dedupe(nodes):
 # ---------------------------------------------------------------------------
 # 第 3 步: 并发调用 Cloudflare Worker
 # ---------------------------------------------------------------------------
-def classify_network(host, exit_org):
-    """"是否住宅 IP" 的启发式估算 (Worker 出口数据不含托管标志, 只能估算):
-    返回 'residential' / 'datacenter' / 'unknown'。"""
+def classify_network(host, exit_org, is_datacenter=None):
+    """住宅/机房分类, 按可信度排序:
+    1) Worker 返回的真实 is_datacenter 标志 (IP 情报库);
+    2) 出口 ASN 组织名关键词;
+    3) host 前缀启发式 (最后兜底, 属估算)。"""
+    # 1) 真实数据中心标志 (SSTP 版 Worker 顶层 exit 直接给出)
+    if is_datacenter is True:
+        return "datacenter"
+    if is_datacenter is False:
+        return "residential"
+    # 2) 出口组织名关键词
     org = (exit_org or "").upper()
     if org:
         if any(k in org for k in DATA_CENTER_ORG_KEYWORDS):
             return "datacenter"
         if any(k in org for k in RESIDENTIAL_ORG_KEYWORDS):
             return "residential"
+    # 3) host 前缀启发式 (估算)
     h = host.lower()
     if h.startswith("public-vpn"):
         return "datacenter"      # VPN Gate 官方公共中继 (机房/托管)
@@ -298,29 +307,30 @@ def check_one(node, session):
             return out
         j = r.json()
         ok = bool(j.get("success"))
-        probes = j.get("probe_results") or {}
-        p4 = probes.get("ipv4") or {}
-        p6 = probes.get("ipv6") or {}
-        exit_info = p4.get("exit") or p6.get("exit")
         out["success"] = ok
         out["status"] = "success" if ok else "failed"
         out["latency_ms"] = j.get("responseTime")
-        out["inferred_stack"] = j.get("inferred_stack")
-        out["supports_ipv4"] = bool(j.get("supports_ipv4") or p4.get("ok"))
-        out["supports_ipv6"] = bool(j.get("supports_ipv6") or p6.get("ok"))
-        out["error"] = (None if ok else (j.get("error") or p4.get("error") or p6.get("error") or "proxy check failed"))
+        out["colo"] = j.get("colo")
+        out["error"] = (None if ok else (j.get("error") or j.get("message") or "check failed"))
+        # SSTP 版 Worker: 顶层直接返回 exit, 含真实 is_datacenter 标志 + 嵌套 asn 对象
+        exit_info = j.get("exit") or {}
         if exit_info:
+            asn = exit_info.get("asn") or {}
+            org = asn.get("org") or asn.get("name") or ""
             out["exit"] = {
                 "ip": exit_info.get("ip"),
                 "country": exit_info.get("country"),
+                "country_code": exit_info.get("country_code"),
                 "city": exit_info.get("city"),
-                "asn": exit_info.get("asn"),
-                "org": exit_info.get("asOrganization"),
                 "continent": exit_info.get("continent"),
+                "asn": asn.get("asn"),
+                "org": org,
+                "type": asn.get("type"),
+                "is_datacenter": exit_info.get("is_datacenter"),
             }
-            out["residential"] = classify_network(out["host"], exit_info.get("asOrganization"))
+            out["residential"] = classify_network(out["host"], org, exit_info.get("is_datacenter"))
         else:
-            out["residential"] = classify_network(out["host"], None)
+            out["residential"] = classify_network(out["host"], None, None)
         return out
     except Exception as exc:
         out["error"] = f"{type(exc).__name__}: {exc}"
