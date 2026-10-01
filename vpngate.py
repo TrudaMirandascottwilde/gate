@@ -632,11 +632,17 @@ def write_outputs(data):
     with open(hosts_path, "w", encoding="utf-8") as f:
         f.write(build_hosts_text(data))
 
+    # 纯节点版(无注释): 把 URL 填进 edgetunnel「自定义优选IP」框, 客户端刷新订阅即自动轮换
+    nodes_path = os.path.join(PUBLIC_DIR, "nodes.txt")
+    nodes_lines = [ln for ln in build_hosts_text(data).split("\n") if ln and not ln.startswith("#")]
+    with open(nodes_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(nodes_lines) + ("\n" if nodes_lines else ""))
+
     # 完整 vless:// 订阅 (填进后台「订阅链接」URL, 客户端自动轮换)
     sub_path = os.path.join(PUBLIC_DIR, "sub.txt")
     with open(sub_path, "w", encoding="utf-8") as f:
         f.write(build_sub_text(data))
-    return data_path, html_path, chains_path, hosts_path, sub_path
+    return data_path, html_path, chains_path, hosts_path, nodes_path, sub_path
 
 
 # ---------------------------------------------------------------------------
@@ -688,11 +694,12 @@ def main():
     log("RESULT", f"可用节点: {len(success)}")
     log("RESULT", f"国家数量: {data['stats']['countries']}")
 
-    data_path, html_path, chains_path, hosts_path, sub_path = write_outputs(data)
+    data_path, html_path, chains_path, hosts_path, nodes_path, sub_path = write_outputs(data)
     log("WEBSITE", f"生成 {os.path.relpath(data_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(html_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(chains_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(hosts_path, REPO_DIR)}")
+    log("WEBSITE", f"生成 {os.path.relpath(nodes_path, REPO_DIR)}")
     log("WEBSITE", f"生成 {os.path.relpath(sub_path, REPO_DIR)}")
     log("WEBSITE", "完成 (GitHub Pages 部署由 workflow 执行)")
 
