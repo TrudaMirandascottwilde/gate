@@ -35,13 +35,17 @@ VPN Gate 官方源
 保留成功节点 → 按国家分组 → 住宅/机房标注 → 延迟排序
       │
       ▼
-生成 hosts.txt (走 GitHub Pages 发布)
-      │  你全选复制
+生成 4 个产物 (GitHub Pages 发布):
+  · hosts.txt   —— 含注释, 给人看 / 手动粘贴
+  · nodes.txt   —— 纯节点行, 填 URL 自动轮换 ★推荐
+  · chains.txt  —— 链式代理备注清单
+  · sub.txt     —— vless:// 完整订阅
+      │  把 nodes.txt 的网址填一次进 edgetunnel 后台
       ▼
-粘贴进 edgetunnel 后台「自定义优选IP」框
-      │  edgetunnel 自动把链式代理指令编码进节点 path
+edgetunnel 后台「自定义优选IP」框填 https://…/nodes.txt
+      │  edgetunnel 每次生成订阅时自动 fetch → 解析 $sstp:// → 套链式代理
       ▼
-客户端订阅 edgetunnel 订阅 → 使用 SSTP 家宽节点
+客户端订阅 edgetunnel 订阅 → 使用 SSTP 家宽节点 (每 30 分钟自动换)
 ```
 
 ---
@@ -82,7 +86,7 @@ VPN Gate 官方源
 | vpngate.py | 约 515 行 EDT_DOMAIN | 你的 edgetunnel 域名 | 链式代理入口的 SNI/host |
 | vpngate.py | 约 514 行 EDT_UUID | 你的 edgetunnel UUID | 链式代理编码密钥 |
 | vpngate.py | 约 455 行 EDGE_HOSTS | 你测出来的优选域名 | 入口用谁，决定稳不稳 |
-| vpngate.py | CHAIN_URL / HOSTS_URL / SUB_URL | 把里面写死的固定地址换成 你的用户名/仓库名 | 清单注释头里的固定地址 |
+| vpngate.py | CHAIN_URL / HOSTS_URL / NODES_URL / SUB_URL | 把里面写死的固定地址换成 你的用户名/仓库名 | 清单注释头 / 使用教程里的固定地址 |
 | .github/workflows/check.yml | 最后的 Show site URL | 把里面写死的站点地址换成你的 | 运行日志里显示的站点地址 |
 
 > CHECK_WORKER 通过 workflow 环境变量传给脚本、会覆盖 vpngate.py 里的默认值，所以检测 Worker 域名只需在 workflow 里改一处。EDT_DOMAIN / EDT_UUID / EDGE_HOSTS 是 vpngate.py 里的默认值，直接改源码。
@@ -108,13 +112,29 @@ https://你的GitHub用户名.github.io/仓库名/hosts.txt
 
 ---
 
-## 二、使用教程
+## 二、使用教程（两种方式，推荐方式一）
 
 ### 前置条件
 - 已部署 edgetunnel（自己的域名 + UUID）
 - 一个客户端：v2rayN / Clash Verge / v2rayNG 等
 
-### 步骤（约 1 分钟）
+### 方式一：URL 自动轮换（推荐，一次配置永久生效）
+
+edgetunnel 后台的「自定义优选IP」框除了粘贴文本，还支持直接填一个 `https://` 开头的**网址**——edgetunnel 会在生成订阅时自动 fetch 该网址、解析出里面的 `入口:端口#名字$sstp://…` 行并套上链式代理。因此：
+
+1. 进 edgetunnel 后台（你的域名/admin），找到「自定义优选IP」文本框
+2. 粘贴**一行网址**（不是整段节点）：
+
+   ```text
+   https://你的GitHub用户名.github.io/仓库名/nodes.txt
+   ```
+
+3. 点保存
+4. 客户端刷新订阅 → 每次刷新 edgetunnel 都重新拉取一次 nodes.txt，节点自动更新
+
+> 原理：`nodes.txt` 是纯节点行版本（无注释头），每行 `入口域名:443#国家-住宅-01$sstp://vpn:vpn@节点:端口`。edgetunnel 下次生成订阅时会 fetch 这个网址、逐行解析成优选入口 + 链式代理指令。你只填一次，之后节点每 30 分钟自动换、零手动。
+
+### 方式二：手动复制粘贴（旧方式，保留）
 
 1. 打开 https://你的GitHub用户名.github.io/仓库名/hosts.txt
 2. 浏览器里 Ctrl+A 全选 → Ctrl+C 复制
@@ -129,7 +149,8 @@ https://你的GitHub用户名.github.io/仓库名/hosts.txt
 节点名格式：国家-住宅-编号 / 国家-机房-编号，例如 日本-住宅-01、韩国-机房-02。住宅和机房各自独立编号，一眼区分。
 
 ### 每 30 分钟更新
-节点每 30 分钟换一批，想换新节点时：重新打开 hosts.txt → 全选复制 → 覆盖粘贴。名字保持不变，只是背后的节点地址换了。
+
+节点每 30 分钟换一批。方式一无需任何操作；方式二需重新打开 hosts.txt → 全选复制 → 覆盖粘贴。名字保持不变，只是背后的节点地址换了。
 
 ---
 
@@ -176,6 +197,7 @@ EDGE_HOSTS = [
 | EDT_FINGERPRINT | 516 行 | TLS 指纹（默认 chrome） |
 | WORKER_CHECK_URL | 54 行 | 检测 Worker（本地运行默认值，Action 里用 workflow 的 CHECK_WORKER 覆盖） |
 | COUNTRY_ZH | 78 行 | 国家中文名映射 |
+| NODES_URL / HOSTS_URL / CHAIN_URL / SUB_URL | 469 行起 | 4 个产物的固定地址（自动轮换用 NODES_URL；fork 后改成你自己的） |
 
 ---
 
