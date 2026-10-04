@@ -498,6 +498,9 @@ def build_hosts_text(data):
     _entry = os.environ.get("HOSTS_ENTRY", "").strip()
     fallback_domain = f"{EDT_DOMAIN}:443" if EDT_DOMAIN else "example.com:443"
     edge = [e.strip() for e in _entry.split(",") if e.strip()] or EDGE_HOSTS or [fallback_domain]
+    if not edge:
+        edge = ["example.com:443"]
+
     lines = [
         "# edgetunnel「自定义优选IP」清单 (整段复制, 追加到后台现有内容后面)",
         f"# 自动更新: {data['generated_at']} (每 30 分钟重新检测)",
@@ -549,7 +552,11 @@ SUB_URL = os.environ.get("SUB_URL", "https://jerylihub.github.io/gate/sub.txt")
 def _b64_secret_encode(plaintext, secret):
     """复刻 edgetunnel 的 base64SecretEncode: UTF-8 循环密钥 XOR + 标准 base64。"""
     data = plaintext.encode("utf-8")
+    if not secret:
+        return base64.b64encode(data).decode("ascii")
     key = secret.encode("utf-8")
+    if not key:
+        return base64.b64encode(data).decode("ascii")
     mixed = bytes(data[i] ^ key[i % len(key)] for i in range(len(data)))
     return base64.b64encode(mixed).decode("ascii")
 
