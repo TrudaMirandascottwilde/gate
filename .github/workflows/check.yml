@@ -34,8 +34,8 @@ jobs:
       - name: Get VPN Gate nodes + check via Cloudflare Worker + build page
         run: python vpngate.py
         env:
-          # 已部署的检测 Worker (不要改动: 检测统一走这里)
-          CHECK_WORKER: ${{ secrets.CHECK_WORKER_URL }}
+          # ✅ 已修正环境变量名称，匹配 vpngate.py 中的 os.environ["WORKER_CHECK_URL"]
+          WORKER_CHECK_URL: ${{ secrets.CHECK_WORKER_URL }}
           CHECK_CONCURRENCY: "32"
           CHECK_TIMEOUT: "90"
 
